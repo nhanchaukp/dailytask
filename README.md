@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="DailyTask/Resources/AppIcon.png" alt="Daily Task Logo" width="128" height="128" />
+</p>
+
 <h1 align="center">Daily Task</h1>
 
 <p align="center">
