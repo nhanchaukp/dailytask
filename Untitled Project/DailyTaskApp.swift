@@ -1,0 +1,22 @@
+import SwiftUI
+
+@main
+struct DailyTaskApp: App {
+    @State private var store = TaskStore()
+
+    var body: some Scene {
+        MenuBarExtra {
+            ContentView()
+                .environment(store)
+        } label: {
+            let incompleteCount = store.incompleteTaskCount
+            HStack(spacing: 4) {
+                Image(systemName: incompleteCount > 0 ? "checklist.checked" : "checklist")
+                if incompleteCount > 0 {
+                    Text("\(incompleteCount)")
+                }
+            }
+        }
+        .menuBarExtraStyle(.window)
+    }
+}
