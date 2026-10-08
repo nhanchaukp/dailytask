@@ -14,11 +14,11 @@ struct ContentView: View {
         @Bindable var store = store
         
         VStack(spacing: 0) {
-            headerView(store: store)
-            
-            if let release = updateChecker.latestRelease {
+            if let release = updateChecker.latestRelease, !updateChecker.isDismissed {
                 updateBanner(release: release)
             }
+            
+            headerView(store: store)
             
             taskListView
             
@@ -30,21 +30,20 @@ struct ContentView: View {
         .background(Color(NSColor.windowBackgroundColor))
     }
     
-    // MARK: - Update Banner
+    // MARK: - Update Banner (Top Docked, Compact & Dismissible)
     @ViewBuilder
     private func updateBanner(release: ReleaseInfo) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "arrow.down.circle.fill")
+        HStack(spacing: 6) {
+            Image(systemName: "sparkles")
                 .foregroundColor(.accentColor)
-                .font(.system(size: 14))
+                .font(.system(size: 11, weight: .semibold))
             
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Đã có bản cập nhật v\(release.version)")
-                    .font(.system(size: 11, weight: .bold))
-                Text("Bấm để tải về và cập nhật")
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-            }
+            Text("Đã có bản cập nhật ")
+                .font(.system(size: 11))
+                .foregroundColor(.primary.opacity(0.85))
+            + Text("v\(release.version)")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.primary)
             
             Spacer()
             
@@ -52,14 +51,28 @@ struct ContentView: View {
                 updateChecker.openReleaseDownload(release)
             }
             .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .controlSize(.mini)
+            
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    updateChecker.dismissUpdate()
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8.5, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .padding(3.5)
+                    .background(Color.primary.opacity(0.06))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Bỏ qua")
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.accentColor.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
         .padding(.horizontal, 12)
-        .padding(.top, 4)
+        .padding(.vertical, 5)
+        .background(Color.accentColor.opacity(0.12))
+        .overlay(Divider(), alignment: .bottom)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
     
     // MARK: - Header View

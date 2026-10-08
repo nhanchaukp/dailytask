@@ -2,65 +2,41 @@ import Foundation
 import AppKit
 import Observation
 
-/// DTO representing release asset from GitHub Releases API
-public struct GitHubAsset: Codable, Sendable, Equatable {
+/// Model representing an individual GitHub Release Asset
+public struct GitHubAsset: Codable, Sendable {
     public let name: String
     public let browserDownloadURL: String
-    public let size: Int?
-    public let contentType: String?
+    public let size: Int
     
     enum CodingKeys: String, CodingKey {
         case name
         case browserDownloadURL = "browser_download_url"
         case size
-        case contentType = "content_type"
-    }
-    
-    public init(name: String, browserDownloadURL: String, size: Int? = nil, contentType: String? = nil) {
-        self.name = name
-        self.browserDownloadURL = browserDownloadURL
-        self.size = size
-        self.contentType = contentType
     }
 }
 
-/// DTO representing GitHub release response
-public struct GitHubRelease: Codable, Sendable, Equatable {
+/// Model representing GitHub Release API Response
+public struct GitHubRelease: Codable, Sendable {
     public let tagName: String
     public let name: String?
     public let body: String?
     public let htmlURL: String
-    public let publishedAt: String?
     public let assets: [GitHubAsset]?
+    public let publishedAt: String?
     
     enum CodingKeys: String, CodingKey {
         case tagName = "tag_name"
         case name
         case body
         case htmlURL = "html_url"
-        case publishedAt = "published_at"
         case assets
-    }
-    
-    public init(
-        tagName: String,
-        name: String? = nil,
-        body: String? = nil,
-        htmlURL: String,
-        publishedAt: String? = nil,
-        assets: [GitHubAsset]? = nil
-    ) {
-        self.tagName = tagName
-        self.name = name
-        self.body = body
-        self.htmlURL = htmlURL
-        self.publishedAt = publishedAt
-        self.assets = assets
+        case publishedAt = "published_at"
     }
 }
 
-/// Information about an available application release
-public struct ReleaseInfo: Sendable, Equatable {
+/// Parsed release information used by the application
+public struct ReleaseInfo: Identifiable, Equatable, Sendable {
+    public var id: String { tagName }
     public let tagName: String
     public let version: String
     public let name: String
@@ -114,6 +90,29 @@ public final class UpdateChecker {
     public private(set) var status: UpdateStatus = .idle
     public private(set) var latestRelease: ReleaseInfo? = nil
     
+    /// Controls whether user dismissed the top update banner
+    public var isDismissed: Bool = false
+    
+    public var dismissedVersion: String? {
+        get {
+            UserDefaults.standard.string(forKey: "dailytask_dismissed_update_version")
+        }
+        set {
+            if let val = newValue {
+                UserDefaults.standard.set(val, forKey: "dailytask_dismissed_update_version")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "dailytask_dismissed_update_version")
+            }
+        }
+    }
+    
+    public func dismissUpdate() {
+        isDismissed = true
+        if let version = latestRelease?.version {
+            dismissedVersion = version
+        }
+    }
+    
     public private(set) var lastCheckDate: Date? {
         get {
             let timestamp = UserDefaults.standard.double(forKey: "dailytask_last_update_check")
@@ -146,7 +145,7 @@ public final class UpdateChecker {
     
     /// Current running application version string
     public static var currentVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
     
     /// Clean semantic version string (strips 'v' or 'V' prefix)
@@ -230,10 +229,21 @@ public final class UpdateChecker {
             if Self.isVersion(releaseInfo.version, newerThan: Self.currentVersion) {
                 latestRelease = releaseInfo
                 status = .updateAvailable(releaseInfo)
-                // Always show alert when update is available
-                showAlert(for: status)
+                
+                // If user already dismissed this specific version, keep it hidden in background check
+                if !isUserInitiated && releaseInfo.version == dismissedVersion {
+                    isDismissed = true
+                } else {
+                    isDismissed = false
+                }
+                
+                // Only show modal alert if explicitly requested by the user
+                if isUserInitiated {
+                    showAlert(for: status)
+                }
             } else {
                 latestRelease = nil
+                isDismissed = false
                 status = .upToDate(checkedAt: now)
                 if isUserInitiated {
                     showAlert(for: status)
@@ -312,23 +322,16 @@ public final class UpdateChecker {
         case .updateAvailable(let release):
             alert.alertStyle = .informational
             alert.messageText = "Đã có bản cập nhật mới!"
-            
-            var details = "Phiên bản \(release.version) đã sẵn sàng để tải về. Phiên bản hiện tại của bạn là \(Self.currentVersion)."
-            let trimmedBody = release.body.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedBody.isEmpty {
-                details += "\n\nNội dung cập nhật:\n\(trimmedBody.prefix(300))"
-            }
-            alert.informativeText = details
+            alert.informativeText = "Phiên bản \(release.version) đã sẵn sàng để tải về. (Phiên bản hiện tại của bạn là \(Self.currentVersion))."
             
             alert.addButton(withTitle: "Tải bản cập nhật")
-            alert.addButton(withTitle: "Xem chi tiết trên GitHub")
-            alert.addButton(withTitle: "Để sau")
+            alert.addButton(withTitle: "Bỏ qua")
             
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {
                 openReleaseDownload(release)
-            } else if response == .alertSecondButtonReturn {
-                NSWorkspace.shared.open(release.htmlURL)
+            } else {
+                dismissUpdate()
             }
             
         case .upToDate:
