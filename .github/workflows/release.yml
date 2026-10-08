@@ -317,34 +317,33 @@ jobs:
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/nhanchaukp/homebrew-tap.git" "$TAP_DIR"
           mkdir -p "$TAP_DIR/Casks"
 
-          cat <<EOF > "$TAP_DIR/Casks/dailytask.rb"
-cask "dailytask" do
-  arch arm: "arm64", intel: "x86_64"
-
-  version "${APP_VERSION}"
-  sha256 arm:   "${SHA_ARM64}",
-         intel: "${SHA_INTEL}"
-
-  url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/DailyTask-#{arch}.dmg"
-  name "Daily Task"
-  desc "Lightweight menu bar daily task and todo manager for macOS"
-  homepage "https://github.com/${GITHUB_REPOSITORY}"
-
-  auto_updates true
-  depends_on macos: :sonoma
-
-  app "Daily Task.app"
-
-  uninstall quit: "com.nhanchaukp.DailyTaskApp"
-
-  zap trash: [
-    "~/Library/Application Support/DailyTask",
-    "~/Library/Caches/com.nhanchaukp.DailyTaskApp",
-    "~/Library/HTTPStorages/com.nhanchaukp.DailyTaskApp",
-    "~/Library/Preferences/com.nhanchaukp.DailyTaskApp.plist",
-  ]
-end
-EOF
+          CASK_PATH="$TAP_DIR/Casks/dailytask.rb"
+          echo 'cask "dailytask" do' > "$CASK_PATH"
+          echo '  arch arm: "arm64", intel: "x86_64"' >> "$CASK_PATH"
+          echo '' >> "$CASK_PATH"
+          echo "  version \"${APP_VERSION}\"" >> "$CASK_PATH"
+          echo "  sha256 arm:   \"${SHA_ARM64}\"," >> "$CASK_PATH"
+          echo "         intel: \"${SHA_INTEL}\"" >> "$CASK_PATH"
+          echo '' >> "$CASK_PATH"
+          echo "  url \"https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/DailyTask-#{arch}.dmg\"" >> "$CASK_PATH"
+          echo '  name "Daily Task"' >> "$CASK_PATH"
+          echo '  desc "Lightweight menu bar daily task and todo manager for macOS"' >> "$CASK_PATH"
+          echo "  homepage \"https://github.com/${GITHUB_REPOSITORY}\"" >> "$CASK_PATH"
+          echo '' >> "$CASK_PATH"
+          echo '  auto_updates true' >> "$CASK_PATH"
+          echo '  depends_on macos: :sonoma' >> "$CASK_PATH"
+          echo '' >> "$CASK_PATH"
+          echo '  app "Daily Task.app"' >> "$CASK_PATH"
+          echo '' >> "$CASK_PATH"
+          echo '  uninstall quit: "com.nhanchaukp.DailyTaskApp"' >> "$CASK_PATH"
+          echo '' >> "$CASK_PATH"
+          echo '  zap trash: [' >> "$CASK_PATH"
+          echo '    "~/Library/Application Support/DailyTask",' >> "$CASK_PATH"
+          echo '    "~/Library/Caches/com.nhanchaukp.DailyTaskApp",' >> "$CASK_PATH"
+          echo '    "~/Library/HTTPStorages/com.nhanchaukp.DailyTaskApp",' >> "$CASK_PATH"
+          echo '    "~/Library/Preferences/com.nhanchaukp.DailyTaskApp.plist",' >> "$CASK_PATH"
+          echo '  ]' >> "$CASK_PATH"
+          echo 'end' >> "$CASK_PATH"
 
           cd "$TAP_DIR"
           git config user.name "github-actions[bot]"
