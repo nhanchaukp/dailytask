@@ -3,6 +3,7 @@ import Observation
 
 struct ContentView: View {
     @Environment(TaskStore.self) private var store
+    @State private var updateChecker = UpdateChecker.shared
     
     @State private var newTaskTitle: String = ""
     @State private var newTaskTags: String = ""
@@ -15,6 +16,10 @@ struct ContentView: View {
         VStack(spacing: 0) {
             headerView(store: store)
             
+            if let release = updateChecker.latestRelease {
+                updateBanner(release: release)
+            }
+            
             taskListView
             
             Divider()
@@ -25,10 +30,43 @@ struct ContentView: View {
         .background(Color(NSColor.windowBackgroundColor))
     }
     
+    // MARK: - Update Banner
+    @ViewBuilder
+    private func updateBanner(release: ReleaseInfo) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundColor(.accentColor)
+                .font(.system(size: 14))
+            
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Đã có bản cập nhật v\(release.version)")
+                    .font(.system(size: 11, weight: .bold))
+                Text("Bấm để tải về và cập nhật")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Button("Cập nhật") {
+                updateChecker.openReleaseDownload(release)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.accentColor.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
+    }
+    
     // MARK: - Header View
     @ViewBuilder
     private func headerView(store: TaskStore) -> some View {
         @Bindable var bindableStore = store
+        @Bindable var bindableChecker = updateChecker
         
         VStack(spacing: 8) {
             HStack {
@@ -79,6 +117,23 @@ struct ContentView: View {
                     } label: {
                         Label("Xoá các task đã xong", systemImage: "trash")
                     }
+                    
+                    Divider()
+                    
+                    Toggle("Tự động kiểm tra bản cập nhật", isOn: $bindableChecker.automaticallyCheckForUpdates)
+                    
+                    Button {
+                        Task {
+                            await updateChecker.checkForUpdates(isUserInitiated: true)
+                        }
+                    } label: {
+                        if updateChecker.status == .checking {
+                            Label("Đang kiểm tra cập nhật...", systemImage: "arrow.triangle.2.circlepath")
+                        } else {
+                            Label("Kiểm tra bản cập nhật...", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(updateChecker.status == .checking)
                     
                     Divider()
                     

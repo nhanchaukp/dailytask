@@ -8,6 +8,11 @@ struct DailyTaskApp: App {
         MenuBarExtra {
             ContentView()
                 .environment(store)
+                .task {
+                    // Check for updates in the background after launch
+                    try? await Task.sleep(for: .seconds(2))
+                    await UpdateChecker.shared.checkForUpdates(isUserInitiated: false)
+                }
         } label: {
             let incompleteCount = store.incompleteTaskCount
             HStack(spacing: 4) {

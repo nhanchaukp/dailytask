@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Verify
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Record toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          uname -m
+
+      - name: Build Project
+        run: |
+          xcodebuild build \
+            -project DailyTask.xcodeproj \
+            -scheme DailyTask \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY=""
