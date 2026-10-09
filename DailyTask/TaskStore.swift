@@ -15,6 +15,7 @@ final class TaskStore {
     }
     var searchText: String = ""
     var selectedTagFilter: String? = nil
+    var filterOnlyIncomplete: Bool = false
     var lastSyncDate: Date? = nil
     var isSyncing: Bool = false
     var autoReorderCompleted: Bool = false {
@@ -68,6 +69,10 @@ final class TaskStore {
     var filteredTasks: [TaskItem] {
         var result = tasks
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if filterOnlyIncomplete {
+            result = result.filter { !$0.isCompleted }
+        }
 
         if !trimmedSearch.isEmpty {
             result = result.filter { task in

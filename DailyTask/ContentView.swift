@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import AppKit
 
 struct ContentView: View {
     @Environment(TaskStore.self) private var store
@@ -23,11 +24,13 @@ struct ContentView: View {
             taskListView
             
             Divider()
+                .opacity(0.35)
             
             footerView
         }
         .frame(width: 380, height: 520)
-        .background(Color(NSColor.windowBackgroundColor))
+        .modifier(NativeGlassBackgroundModifier())
+        .background(WindowTransparencyConfigurator())
     }
     
     // MARK: - Update Banner (Top Docked, Compact & Dismissible)
@@ -38,19 +41,16 @@ struct ContentView: View {
                 .foregroundColor(.accentColor)
                 .font(.system(size: 11, weight: .semibold))
             
-            Text("Đã có bản cập nhật ")
+            Text("Đã có bản cập nhật \(Text("v\(release.version)").fontWeight(.bold).foregroundColor(.primary))")
                 .font(.system(size: 11))
                 .foregroundColor(.primary.opacity(0.85))
-            + Text("v\(release.version)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.primary)
             
             Spacer()
             
             Button("Cập nhật") {
                 updateChecker.openReleaseDownload(release)
             }
-            .buttonStyle(.borderedProminent)
+            .modifier(NativeGlassProminentButtonModifier())
             .controlSize(.mini)
             
             Button {
@@ -62,16 +62,14 @@ struct ContentView: View {
                     .font(.system(size: 8.5, weight: .bold))
                     .foregroundColor(.secondary)
                     .padding(3.5)
-                    .background(Color.primary.opacity(0.06))
-                    .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .modifier(NativeGlassButtonModifier(shape: Circle()))
             .help("Bỏ qua")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .background(Color.accentColor.opacity(0.12))
-        .overlay(Divider(), alignment: .bottom)
+        .overlay(Divider().opacity(0.35), alignment: .bottom)
         .transition(.move(edge: .top).combined(with: .opacity))
     }
     
@@ -101,12 +99,27 @@ struct ContentView: View {
                 }
                 
                 let remaining = store.incompleteTaskCount
-                Text("\(remaining) chưa xong")
-                    .font(.system(size: 11, weight: .medium))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.14))
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        store.filterOnlyIncomplete.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 3.5) {
+                        if store.filterOnlyIncomplete {
+                            Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                                .font(.system(size: 9))
+                        }
+                        Text("\(remaining) chưa xong")
+                            .font(.system(size: 11, weight: store.filterOnlyIncomplete ? .semibold : .medium))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .foregroundColor(store.filterOnlyIncomplete ? .white : .secondary)
+                    .modifier(NativeGlassTagModifier(isSelected: store.filterOnlyIncomplete))
                     .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(store.filterOnlyIncomplete ? "Đang lọc task chưa xong (nhấn để hiện tất cả)" : "Nhấn để chỉ hiện các task chưa xong")
                 
                 Menu {
                     Toggle("Tự sắp xếp khi hoàn tất", isOn: $bindableStore.autoReorderCompleted)
@@ -164,7 +177,7 @@ struct ContentView: View {
                 .fixedSize()
             }
             
-            // Search Bar
+            // Search Bar (Native liquid glass input with smooth rounded pill corners)
             HStack(spacing: 7) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(.secondary)
@@ -185,14 +198,9 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(7)
-            .overlay(
-                RoundedRectangle(cornerRadius: 7)
-                    .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
-            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .modifier(NativeGlassInputModifier(cornerRadius: 16))
             
             // Quick Tag Filter Bar if tags exist
             if !store.allAvailableTags.isEmpty {
@@ -212,11 +220,11 @@ struct ContentView: View {
                                     Text("Tất cả")
                                 }
                                 .font(.system(size: 10, weight: .medium))
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(store.selectedTagFilter == nil ? Color.accentColor : Color.secondary.opacity(0.12))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3.5)
                                 .foregroundColor(store.selectedTagFilter == nil ? .white : .secondary)
-                                .cornerRadius(5)
+                                .modifier(NativeGlassTagModifier(isSelected: store.selectedTagFilter == nil))
+                                .clipShape(Capsule())
                             }
                             .buttonStyle(.plain)
                             
@@ -234,11 +242,11 @@ struct ContentView: View {
                                         Text(tag)
                                     }
                                     .font(.system(size: 10, weight: .medium))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 3)
-                                    .background(store.selectedTagFilter == tag ? Color.accentColor : Color.secondary.opacity(0.12))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3.5)
                                     .foregroundColor(store.selectedTagFilter == tag ? .white : .secondary)
-                                    .cornerRadius(5)
+                                    .modifier(NativeGlassTagModifier(isSelected: store.selectedTagFilter == tag))
+                                    .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -253,24 +261,24 @@ struct ContentView: View {
         .padding(.bottom, 8)
     }
     
-    // MARK: - Task List View Grouped by Date (Compact, Slim Transient Scrollbar)
+    // MARK: - Task List View Grouped by Date
     private var taskListView: some View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                 if store.groupedTasks.isEmpty {
-                    Divider()
+                    Divider().opacity(0.35)
                     emptyStateView
                 } else {
                     ForEach(store.groupedTasks) { group in
                         Section {
-                            VStack(spacing: 4) {
+                            VStack(spacing: 2) {
                                 ForEach(group.tasks) { task in
                                     TaskRowView(task: task)
                                 }
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.top, 6)
-                            .padding(.bottom, 8)
+                            .padding(.horizontal, 10)
+                            .padding(.top, 4)
+                            .padding(.bottom, 6)
                         } header: {
                             sectionHeader(title: group.title, count: group.tasks.count, date: group.date)
                         }
@@ -283,7 +291,7 @@ struct ContentView: View {
         .controlSize(.small)
     }
     
-    // MARK: - Darker Date Section Header (Seamlessly Docked)
+    // MARK: - Translucent Frosted Date Section Header
     private func sectionHeader(title: String, count: Int, date: Date) -> some View {
         HStack(spacing: 5) {
             Image(systemName: "calendar")
@@ -302,17 +310,14 @@ struct ContentView: View {
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 1)
-                .background(Color.primary.opacity(0.1))
+                .background(Color.primary.opacity(0.08))
                 .clipShape(Capsule())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4.5)
-        .background(
-            Color(NSColor.windowBackgroundColor)
-                .overlay(Color.primary.opacity(0.08))
-        )
-        .overlay(Divider(), alignment: .top)
-        .overlay(Divider(), alignment: .bottom)
+        .background(.ultraThinMaterial)
+        .overlay(Divider().opacity(0.3), alignment: .top)
+        .overlay(Divider().opacity(0.3), alignment: .bottom)
     }
     
     private var emptyStateView: some View {
@@ -321,7 +326,7 @@ struct ContentView: View {
                 .font(.system(size: 32))
                 .foregroundColor(.secondary.opacity(0.5))
             
-            if !store.searchText.isEmpty || store.selectedTagFilter != nil {
+            if !store.searchText.isEmpty || store.selectedTagFilter != nil || store.filterOnlyIncomplete {
                 Text("Không tìm thấy task nào phù hợp")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
@@ -337,21 +342,16 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, minHeight: 180)
     }
     
-    // MARK: - Footer View (Quick Add)
+    // MARK: - Footer View (Quick Add with Translucent Backdrop)
     private var footerView: some View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
                 TextField("Nhập tên task mới...", text: $newTaskTitle)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .background(Color(NSColor.controlBackgroundColor))
-                    .cornerRadius(7)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 7)
-                            .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
-                    )
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 6.5)
+                    .modifier(NativeGlassInputModifier(cornerRadius: 16))
                     .onSubmit {
                         submitNewTask()
                     }
@@ -369,7 +369,7 @@ struct ContentView: View {
             }
             
             HStack(spacing: 8) {
-                // Tags Input (Optional) - Fixed placeholder jump with steady ZStack
+                // Tags Input (Clean, zero background per user request)
                 HStack(spacing: 5) {
                     Image(systemName: "tag")
                         .foregroundColor(.secondary)
@@ -390,9 +390,9 @@ struct ContentView: View {
                     }
                 }
                 .frame(height: 24)
-                .padding(.horizontal, 7)
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.7))
-                .cornerRadius(6)
+                .padding(.horizontal, 4)
+                
+                Spacer()
                 
                 // Date Selection - Standard, larger and comfortable size
                 DatePicker(
@@ -406,7 +406,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.35))
+        .background(Color.primary.opacity(0.025))
     }
     
     private func submitNewTask() {
@@ -429,7 +429,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Task Row Component (Snappy Toggle, Zero Layout Jitter)
+// MARK: - Task Row Component (Clean, Zero Default Background)
 struct TaskRowView: View {
     @Environment(TaskStore.self) private var store
     let task: TaskItem
@@ -457,21 +457,21 @@ struct TaskRowView: View {
                     .foregroundColor(task.isCompleted ? .secondary.opacity(0.7) : .primary)
                     .lineLimit(2)
                 
-                // Subdued / Muted Tags
+                // Subdued / Muted Tags (Smooth rounded pill chips)
                 if !task.tags.isEmpty {
                     HStack(spacing: 3) {
                         ForEach(task.tags, id: \.self) { tag in
-                            HStack(spacing: 2) {
+                            HStack(spacing: 2.5) {
                                 Image(systemName: "tag")
                                     .font(.system(size: 7))
                                 Text(tag)
                                     .font(.system(size: 9))
                             }
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
                             .background(Color.primary.opacity(0.06))
                             .foregroundColor(.secondary)
-                            .cornerRadius(3)
+                            .clipShape(Capsule())
                         }
                     }
                 }
@@ -509,7 +509,7 @@ struct TaskRowView: View {
         .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isHovering ? Color.primary.opacity(0.06) : Color(NSColor.controlBackgroundColor).opacity(0.45))
+                .fill(isHovering ? Color.primary.opacity(0.05) : Color.clear)
         )
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
@@ -524,6 +524,109 @@ struct TaskRowView: View {
                     isDeleteHovering = false
                 }
             }
+        }
+    }
+}
+
+// MARK: - Native Liquid Glass & Material Modifiers
+
+/// Full-view glass background (pinned to Rectangle to avoid capsule/oval clipping)
+private struct NativeGlassBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: Rectangle())
+        } else {
+            content
+                .background(.ultraThinMaterial)
+        }
+    }
+}
+
+/// Liquid Glass modifier for input text fields (Search, New Task) with smooth pill radius
+private struct NativeGlassInputModifier: ViewModifier {
+    var cornerRadius: CGFloat = 16
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        } else {
+            content
+                .background(Color.primary.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.8)
+                )
+        }
+    }
+}
+
+/// Liquid Glass prominent button style modifier (Update button)
+private struct NativeGlassProminentButtonModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .buttonStyle(.glassProminent)
+        } else {
+            content
+                .buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+/// Liquid Glass standard button style modifier
+private struct NativeGlassButtonModifier<S: Shape>: ViewModifier {
+    var shape: S
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .buttonStyle(.glass)
+        } else {
+            content
+                .buttonStyle(.plain)
+                .background(Color.primary.opacity(0.06))
+                .clipShape(shape)
+        }
+    }
+}
+
+/// Liquid Glass pill filter modifier (Tags)
+private struct NativeGlassTagModifier: ViewModifier {
+    var isSelected: Bool
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(isSelected ? .regular.tint(Color.accentColor) : .clear, in: Capsule())
+        } else {
+            content
+                .background(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                .clipShape(Capsule())
+        }
+    }
+}
+
+/// Helper that configures the hosting window transparent and non-opaque,
+/// enabling true behind-window blur and native glass refraction
+private struct WindowTransparencyConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { [weak view] in
+            guard let window = view?.window else { return }
+            window.isOpaque = false
+            window.backgroundColor = .clear
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { [weak nsView] in
+            guard let window = nsView?.window else { return }
+            window.isOpaque = false
+            window.backgroundColor = .clear
         }
     }
 }
